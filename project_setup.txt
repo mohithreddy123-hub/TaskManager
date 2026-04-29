@@ -1,0 +1,61 @@
+TaskFlow - Setup and Run Guide
+==============================
+
+This document outlines the dependencies installed for this project and the steps to run it locally.
+
+📦 WHAT WAS INSTALLED
+---------------------
+
+### Backend (Python / Django)
+The backend was scaffolded using Python and Django. The dependencies were installed using the following command:
+
+    pip install django djangorestframework djangorestframework-simplejwt django-cors-headers
+
+Packages explained:
+* django (The core web framework)
+* djangorestframework (For building the REST APIs)
+* djangorestframework-simplejwt (For JSON Web Token authentication)
+* django-cors-headers (To allow the frontend to communicate with the backend)
+
+### Frontend (React / Vite)
+The frontend was scaffolded using Vite with the React template:
+    npx -y create-vite@latest frontend -- --template react
+
+The dependencies were installed using the following commands inside the `frontend` folder:
+    npm install axios react-router-dom react-hot-toast lucide-react
+    npm install -D tailwindcss @tailwindcss/vite
+    npm install @vitejs/plugin-react
+
+Packages explained:
+* react, react-dom (Core React libraries)
+* react-router-dom (For page navigation and routing)
+* axios (For making API requests to the backend)
+* react-hot-toast (For displaying success/error notification popups)
+* lucide-react (For SVG icons)
+* tailwindcss, @tailwindcss/vite (For styling the UI components)
+* @vitejs/plugin-react (Vite plugin for React support)
+
+
+🚀 HOW TO RUN THE PROJECT
+-------------------------
+You will need to open TWO separate terminal windows to run both the backend and frontend at the same time.
+
+### Step 1: Run the Django Backend
+Open a terminal and run the following commands:
+1. Navigate to the backend folder:
+   cd C:\TaskManager\backend
+2. Start the Django development server:
+   python manage.py runserver 8000
+
+The backend API will now be running at http://127.0.0.1:8000
+
+### Step 2: Run the React Frontend
+Open a NEW terminal window and run the following commands:
+1. Navigate to the frontend folder:
+   cd C:\TaskManager\frontend
+2. Start the Vite development server:
+   npm run dev
+
+The frontend web app will now be running at http://localhost:5173
+
+Open your browser and go to http://localhost:5173 to use the application!
