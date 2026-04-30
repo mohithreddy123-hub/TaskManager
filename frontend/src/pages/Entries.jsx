@@ -13,6 +13,7 @@ export default function Entries() {
   const [editEntry, setEditEntry] = useState(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [sort, setSort] = useState('newest');
@@ -20,11 +21,11 @@ export default function Entries() {
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await entriesAPI.getAll({ search, status: statusFilter, category: categoryFilter, sort });
+      const { data } = await entriesAPI.getAll({ search, type: typeFilter, status: statusFilter, category: categoryFilter, sort });
       setEntries(data);
     } catch { toast.error('Failed to load entries.'); }
     finally { setLoading(false); }
-  }, [search, statusFilter, categoryFilter, sort]);
+  }, [search, typeFilter, statusFilter, categoryFilter, sort]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
@@ -60,7 +61,11 @@ export default function Entries() {
   };
 
   const handleToggle = async (entry) => {
-    const newStatus = entry.status === 'completed' ? 'pending' : 'completed';
+    let newStatus = 'completed';
+    if (entry.status === 'pending') newStatus = 'in_progress';
+    else if (entry.status === 'in_progress') newStatus = 'completed';
+    else if (entry.status === 'completed') newStatus = 'pending';
+
     try {
       const { data } = await entriesAPI.update(entry.id, { status: newStatus });
       setEntries(entries.map((e) => (e.id === entry.id ? data : e)));
@@ -87,10 +92,17 @@ export default function Entries() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ paddingLeft: '2.2rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }} />
         </div>
+        <select className="field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="">All Types</option>
+          <option value="expense">Expenses</option>
+          <option value="task">Tasks</option>
+        </select>
         <select className="field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
           <option value="">All Status</option>
           <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
         <select className="field" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}

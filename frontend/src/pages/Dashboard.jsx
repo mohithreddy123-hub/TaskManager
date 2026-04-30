@@ -21,6 +21,7 @@ export default function Dashboard() {
 
   // Filters
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -31,7 +32,7 @@ export default function Dashboard() {
     try {
       const [summRes, entrRes] = await Promise.all([
         dashboardAPI.getSummary(),
-        entriesAPI.getAll({ search, status: statusFilter, category: categoryFilter, date: dateFilter, sort }),
+        entriesAPI.getAll({ search, type: typeFilter, status: statusFilter, category: categoryFilter, date: dateFilter, sort }),
       ]);
       setSummary(summRes.data);
       setEntries(entrRes.data);
@@ -40,7 +41,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, categoryFilter, dateFilter, sort]);
+  }, [search, typeFilter, statusFilter, categoryFilter, dateFilter, sort]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -81,11 +82,21 @@ export default function Dashboard() {
   };
 
   const handleToggle = async (entry) => {
-    const newStatus = entry.status === 'completed' ? 'pending' : 'completed';
+    let newStatus = 'completed';
+    if (entry.status === 'pending') newStatus = 'in_progress';
+    else if (entry.status === 'in_progress') newStatus = 'completed';
+    else if (entry.status === 'completed') newStatus = 'pending';
+
     try {
       const { data } = await entriesAPI.update(entry.id, { status: newStatus });
       setEntries(entries.map((e) => (e.id === entry.id ? data : e)));
-      toast.success(newStatus === 'completed' ? 'Marked complete! 🎉' : 'Marked pending.');
+      
+      const messages = {
+        in_progress: 'Started! 🚧',
+        completed: 'Marked complete! 🎉',
+        pending: 'Marked pending.'
+      };
+      toast.success(messages[newStatus]);
       fetchAll();
     } catch { toast.error('Failed to update status.'); }
   };
@@ -104,28 +115,28 @@ export default function Dashboard() {
       sub: `This month: ${formatCurrency(summary.month_spending)}`,
     },
     {
-      label: "Today's Spending",
-      value: formatCurrency(summary.today_spending),
-      icon: TrendingUp,
+      label: 'Total Tasks',
+      value: summary.total_tasks,
+      icon: ListChecks,
       color: '#7c6ff7',
       bg: 'rgba(124,111,247,0.1)',
-      sub: `This week: ${formatCurrency(summary.week_spending)}`,
+      sub: `${summary.completed_tasks} completed`,
     },
     {
-      label: 'Total Entries',
-      value: summary.total_entries,
-      icon: ListChecks,
+      label: 'In Progress Tasks',
+      value: summary.in_progress_tasks,
+      icon: TrendingUp,
       color: '#38bdf8',
       bg: 'rgba(56,189,248,0.1)',
-      sub: `${summary.completed} completed`,
+      sub: `Currently working on`,
     },
     {
       label: 'Pending Tasks',
-      value: summary.pending,
+      value: summary.pending_tasks,
       icon: Clock,
       color: '#fbbf24',
       bg: 'rgba(251,191,36,0.1)',
-      sub: `${summary.completed} completed`,
+      sub: `Needs attention`,
     },
   ] : [];
 
@@ -180,6 +191,14 @@ export default function Dashboard() {
             style={{ paddingLeft: '2.2rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }} />
         </div>
 
+        {/* Type */}
+        <select className="field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="">All Types</option>
+          <option value="expense">Expenses</option>
+          <option value="task">Tasks</option>
+        </select>
+
         {/* Date range */}
         <select className="field" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
           style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
@@ -194,6 +213,7 @@ export default function Dashboard() {
           style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
           <option value="">All Status</option>
           <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
 
