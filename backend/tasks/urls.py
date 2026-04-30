@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import TaskListCreateView, TaskDetailView
+from .views import EntryListCreateView, EntryDetailView, DashboardSummaryView
 
 urlpatterns = [
-    path('tasks', TaskListCreateView.as_view(), name='task-list-create'),
-    path('tasks/<int:pk>', TaskDetailView.as_view(), name='task-detail'),
+    path('dashboard', DashboardSummaryView.as_view(), name='dashboard-summary'),
+    path('entries', EntryListCreateView.as_view(), name='entry-list-create'),
+    path('entries/<int:pk>', EntryDetailView.as_view(), name='entry-detail'),
 ]
