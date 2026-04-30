@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, ListChecks, User, Settings,
-  LogOut, Zap, AlertTriangle, X,
+  LogOut, Wallet, AlertTriangle, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -128,7 +128,7 @@ export default function AppLayout({ children }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 16px rgba(79,142,247,0.35)',
           }}>
-            <Zap size={18} color="#fff" fill="#fff" />
+            <Wallet size={18} color="#fff" strokeWidth={2.5} />
           </div>
           <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.03em' }}>
             Track<span style={{ color: 'var(--accent)' }}>Nest</span>

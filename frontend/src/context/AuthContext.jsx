@@ -37,7 +37,10 @@ export function AuthProvider({ children }) {
       const { data } = await authAPI.getProfile();
       localStorage.setItem('user', JSON.stringify(data));
       setUser(data);
-    } catch (_) {}
+    } catch (_) {
+      // If the backend rejects the token (e.g., user deleted or DB reset), clear stale data
+      logout();
+    }
   };
 
   return (
