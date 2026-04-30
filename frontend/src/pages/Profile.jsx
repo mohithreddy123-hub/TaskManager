@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
-import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
-import { User, Mail, Calendar, Hash, Edit2, Check, X } from 'lucide-react';
+import { Mail, User, Calendar, Hash, ListChecks, Pencil, Check, X } from 'lucide-react';
 
 export default function Profile() {
   const { user, refreshProfile } = useAuth();
@@ -12,133 +11,101 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!name.trim()) return;
     setSaving(true);
     try {
       await authAPI.updateProfile({ name });
       await refreshProfile();
       setEditing(false);
       toast.success('Profile updated!');
-    } catch {
-      toast.error('Failed to update profile.');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error('Failed to update profile.'); }
+    finally { setSaving(false); }
   };
 
-  const formatDate = (iso) => {
+  const initials = (user?.name || user?.email || 'U')
+    .split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const formatJoined = (iso) => {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const fields = [
-    { label: 'Email Address', value: user?.email, icon: Mail },
-    { label: 'Username', value: user?.username, icon: Hash },
-    { label: 'Member Since', value: formatDate(user?.date_joined), icon: Calendar },
+  const infoRows = [
+    { icon: Mail,      label: 'Email',          value: user?.email },
+    { icon: Hash,      label: 'Username',        value: user?.username },
+    { icon: Calendar,  label: 'Member Since',    value: formatJoined(user?.date_joined) },
+    { icon: ListChecks,label: 'Total Entries',   value: user?.total_entries ?? '—' },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <Navbar />
+    <div className="page-container" style={{ maxWidth: '680px' }}>
+      <h1 style={{ fontSize: '1.6rem', marginBottom: '2rem' }}>Profile</h1>
 
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '2rem', letterSpacing: '-0.5px' }}>
-          My Profile
-        </h1>
-
-        {/* Avatar card */}
+      {/* Avatar card */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(79,142,247,0.12), rgba(124,111,247,0.08))',
+        border: '1px solid rgba(79,142,247,0.2)',
+        borderRadius: 'var(--radius)',
+        padding: '2rem',
+        display: 'flex', alignItems: 'center', gap: '1.5rem',
+        marginBottom: '1.5rem', flexWrap: 'wrap',
+      }}>
         <div style={{
-          background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(139,92,246,0.08))',
-          border: '1px solid rgba(108,99,255,0.25)',
-          borderRadius: 'var(--radius)',
-          padding: '2rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1.5rem',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
+          width: '72px', height: '72px', flexShrink: 0,
+          background: 'linear-gradient(135deg, #4f8ef7, #7c6ff7)',
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.5rem', fontWeight: 800, color: '#fff',
+          boxShadow: '0 8px 24px rgba(79,142,247,0.45)',
         }}>
-          <div style={{
-            width: '72px', height: '72px',
-            background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.75rem',
-            fontWeight: 800,
-            color: '#fff',
-            flexShrink: 0,
-            boxShadow: '0 8px 24px rgba(108,99,255,0.4)',
-          }}>
-            {(user?.name || user?.email || 'U')[0].toUpperCase()}
-          </div>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            {editing ? (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input
-                  className="input-field"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{ maxWidth: '220px' }}
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
-                />
-                <button className="btn-primary" onClick={handleSave} disabled={saving} style={{ padding: '0.5rem 0.8rem' }}>
-                  {saving ? <span className="spinner" /> : <Check size={15} />}
-                </button>
-                <button className="btn-ghost" onClick={() => setEditing(false)} style={{ padding: '0.5rem 0.8rem' }}>
-                  <X size={15} />
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text)' }}>
-                  {user?.name || 'No name set'}
-                </span>
-                <button
-                  className="btn-ghost"
-                  onClick={() => { setName(user?.name || ''); setEditing(true); }}
-                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                >
-                  <Edit2 size={13} /> Edit
-                </button>
-              </div>
-            )}
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-              {user?.email}
-            </p>
-          </div>
+          {initials}
         </div>
-
-        {/* Info fields */}
-        <div style={{
-          background: 'var(--color-card)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius)',
-          overflow: 'hidden',
-        }}>
-          {fields.map(({ label, value, icon: Icon }, i) => (
-            <div key={label} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '1.1rem 1.4rem',
-              borderBottom: i < fields.length - 1 ? '1px solid var(--color-border)' : 'none',
-            }}>
-              <div style={{
-                width: '36px', height: '36px',
-                background: 'var(--color-accent-light)',
-                borderRadius: '8px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Icon size={16} color="var(--color-accent)" />
-              </div>
-              <div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.1rem' }}>{label}</p>
-                <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text)' }}>{value || '—'}</p>
-              </div>
+        <div style={{ flex: 1 }}>
+          {editing ? (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input className="field" value={name} onChange={(e) => setName(e.target.value)}
+                style={{ maxWidth: '220px' }} autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }} />
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+                {saving ? <span className="spinner" /> : <Check size={14} />}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}><X size={14} /></button>
             </div>
-          ))}
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
+                {user?.name || 'No name set'}
+              </span>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setName(user?.name || ''); setEditing(true); }}>
+                <Pencil size={13} /> Edit
+              </button>
+            </div>
+          )}
+          <p style={{ fontSize: '0.85rem' }}>{user?.email}</p>
         </div>
+      </div>
+
+      {/* Info rows */}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+        {infoRows.map(({ icon: Icon, label, value }, i) => (
+          <div key={label} style={{
+            display: 'flex', alignItems: 'center', gap: '1rem',
+            padding: '1rem 1.4rem',
+            borderBottom: i < infoRows.length - 1 ? '1px solid var(--border)' : 'none',
+          }}>
+            <div style={{
+              width: '36px', height: '36px', flexShrink: 0,
+              background: 'rgba(79,142,247,0.1)', borderRadius: '9px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={16} color="var(--accent)" />
+            </div>
+            <div>
+              <p style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginBottom: '0.1rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</p>
+              <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text)' }}>{value ?? '—'}</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
