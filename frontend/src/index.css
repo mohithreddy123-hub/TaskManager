@@ -150,6 +150,7 @@ p { color: var(--text-2); }
 }
 .badge-completed { background: rgba(52,211,153,0.12); color: var(--success); border-color: rgba(52,211,153,0.25); }
 .badge-pending { background: rgba(251,191,36,0.12); color: var(--warning); border-color: rgba(251,191,36,0.25); }
+.badge-in-progress { background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.25); }
 
 /* Divider */
 .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
