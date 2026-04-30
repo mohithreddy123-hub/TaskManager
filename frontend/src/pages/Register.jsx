@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { User, Mail, Lock, Eye, EyeOff, Zap } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Wallet } from 'lucide-react';
 
 export default function Register() {
   const { register } = useAuth();
@@ -54,7 +54,7 @@ export default function Register() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 8px 32px rgba(79,142,247,0.4)',
           }}>
-            <Zap size={26} color="#fff" fill="#fff" />
+            <Wallet size={26} color="#fff" />
           </div>
           <h1 style={{ fontSize: '1.6rem', marginBottom: '0.35rem' }}>Create account</h1>
           <p style={{ fontSize: '0.875rem' }}>Start tracking your daily activities</p>
