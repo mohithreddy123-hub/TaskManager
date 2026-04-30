@@ -1,243 +1,250 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { tasksAPI } from '../services/api';
-import Navbar from '../components/Navbar';
-import TaskCard from '../components/TaskCard';
-import TaskModal from '../components/TaskModal';
+import { dashboardAPI, entriesAPI } from '../services/api';
+import EntryCard from '../components/EntryCard';
+import EntryModal from '../components/EntryModal';
 import toast from 'react-hot-toast';
-import { Plus, ClipboardList, CheckCircle2, Clock, Search, Filter } from 'lucide-react';
+import {
+  IndianRupee, ListChecks, CheckCircle2, Clock, TrendingUp,
+  Plus, Calendar, Search, SlidersHorizontal,
+} from 'lucide-react';
+import { formatCurrency, CATEGORIES } from '../utils/constants';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTask, setEditTask] = useState(null);
+  const [editEntry, setEditEntry] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
 
-  const fetchTasks = async () => {
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [sort, setSort] = useState('newest');
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data } = await tasksAPI.getAll();
-      setTasks(data);
+      const [summRes, entrRes] = await Promise.all([
+        dashboardAPI.getSummary(),
+        entriesAPI.getAll({ search, status: statusFilter, category: categoryFilter, date: dateFilter, sort }),
+      ]);
+      setSummary(summRes.data);
+      setEntries(entrRes.data);
     } catch {
-      toast.error('Failed to load tasks.');
+      toast.error('Failed to load data.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, statusFilter, categoryFilter, dateFilter, sort]);
 
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // CRUD
   const handleCreate = async (form) => {
     setSaving(true);
     try {
-      const { data } = await tasksAPI.create(form);
-      setTasks([data, ...tasks]);
+      const { data } = await entriesAPI.create(form);
+      setEntries([data, ...entries]);
+      if (summary) setSummary({ ...summary, total_entries: summary.total_entries + 1 });
       setModalOpen(false);
-      toast.success('Task created! ✅');
-    } catch {
-      toast.error('Failed to create task.');
-    } finally {
-      setSaving(false);
-    }
+      toast.success('Entry added! ✅');
+      fetchAll();
+    } catch { toast.error('Failed to add entry.'); }
+    finally { setSaving(false); }
   };
 
   const handleUpdate = async (form) => {
     setSaving(true);
     try {
-      const { data } = await tasksAPI.update(editTask.id, form);
-      setTasks(tasks.map((t) => (t.id === editTask.id ? data : t)));
-      setModalOpen(false);
-      setEditTask(null);
-      toast.success('Task updated!');
-    } catch {
-      toast.error('Failed to update task.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleToggle = async (task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    try {
-      const { data } = await tasksAPI.update(task.id, { status: newStatus });
-      setTasks(tasks.map((t) => (t.id === task.id ? data : t)));
-      toast.success(newStatus === 'completed' ? 'Task completed! 🎉' : 'Marked as pending.');
-    } catch {
-      toast.error('Failed to update status.');
-    }
+      const { data } = await entriesAPI.update(editEntry.id, form);
+      setEntries(entries.map((e) => (e.id === editEntry.id ? data : e)));
+      setModalOpen(false); setEditEntry(null);
+      toast.success('Entry updated!');
+      fetchAll();
+    } catch { toast.error('Failed to update entry.'); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this task?')) return;
+    if (!confirm('Delete this entry?')) return;
     try {
-      await tasksAPI.delete(id);
-      setTasks(tasks.filter((t) => t.id !== id));
-      toast.success('Task deleted.');
-    } catch {
-      toast.error('Failed to delete task.');
-    }
+      await entriesAPI.delete(id);
+      setEntries(entries.filter((e) => e.id !== id));
+      toast.success('Entry deleted.');
+      fetchAll();
+    } catch { toast.error('Failed to delete.'); }
   };
 
-  const openEdit = (task) => {
-    setEditTask(task);
-    setModalOpen(true);
+  const handleToggle = async (entry) => {
+    const newStatus = entry.status === 'completed' ? 'pending' : 'completed';
+    try {
+      const { data } = await entriesAPI.update(entry.id, { status: newStatus });
+      setEntries(entries.map((e) => (e.id === entry.id ? data : e)));
+      toast.success(newStatus === 'completed' ? 'Marked complete! 🎉' : 'Marked pending.');
+      fetchAll();
+    } catch { toast.error('Failed to update status.'); }
   };
 
-  const openCreate = () => {
-    setEditTask(null);
-    setModalOpen(true);
-  };
+  const openCreate = () => { setEditEntry(null); setModalOpen(true); };
+  const openEdit = (entry) => { setEditEntry(entry); setModalOpen(true); };
 
-  // Stats
-  const total = tasks.length;
-  const completed = tasks.filter((t) => t.status === 'completed').length;
-  const pending = total - completed;
-
-  // Filtered tasks
-  const filtered = tasks.filter((t) => {
-    const matchSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.description?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || t.status === filter;
-    return matchSearch && matchFilter;
-  });
+  // Stat cards config
+  const statCards = summary ? [
+    {
+      label: 'Total Expenses',
+      value: formatCurrency(summary.total_expenses),
+      icon: IndianRupee,
+      color: '#4f8ef7',
+      bg: 'rgba(79,142,247,0.1)',
+      sub: `This month: ${formatCurrency(summary.month_spending)}`,
+    },
+    {
+      label: "Today's Spending",
+      value: formatCurrency(summary.today_spending),
+      icon: TrendingUp,
+      color: '#7c6ff7',
+      bg: 'rgba(124,111,247,0.1)',
+      sub: `This week: ${formatCurrency(summary.week_spending)}`,
+    },
+    {
+      label: 'Total Entries',
+      value: summary.total_entries,
+      icon: ListChecks,
+      color: '#38bdf8',
+      bg: 'rgba(56,189,248,0.1)',
+      sub: `${summary.completed} completed`,
+    },
+    {
+      label: 'Pending Tasks',
+      value: summary.pending,
+      icon: Clock,
+      color: '#fbbf24',
+      bg: 'rgba(251,191,36,0.1)',
+      sub: `${summary.completed} completed`,
+    },
+  ] : [];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <Navbar />
-
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.5px' }}>
-              My Tasks
-            </h1>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-              Welcome back, <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{user?.name || user?.email?.split('@')[0]}</span> 👋
-            </p>
-          </div>
-          <button className="btn-primary" onClick={openCreate}>
-            <Plus size={16} />
-            Add Task
-          </button>
+    <div className="page-container">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.6rem', marginBottom: '0.25rem' }}>Dashboard</h1>
+          <p style={{ fontSize: '0.875rem' }}>
+            Welcome, <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{user?.name || 'there'}</span> 👋 — track your day
+          </p>
         </div>
-
-        {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-          {[
-            { label: 'Total Tasks', value: total, icon: ClipboardList, color: '#6c63ff' },
-            { label: 'Completed', value: completed, icon: CheckCircle2, color: '#10b981' },
-            { label: 'Pending', value: pending, icon: Clock, color: '#f59e0b' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} style={{
-              background: 'var(--color-card)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius)',
-              padding: '1.25rem 1.4rem',
-              display: 'flex', alignItems: 'center', gap: '1rem',
-            }}>
-              <div style={{
-                width: '44px', height: '44px',
-                background: `${color}20`,
-                borderRadius: '10px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Icon size={20} color={color} />
-              </div>
-              <div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>{label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Search & Filter bar */}
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-            <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-            <input
-              className="input-field"
-              placeholder="Search tasks..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ paddingLeft: '2.4rem' }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {['all', 'pending', 'completed'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: '8px',
-                  border: `1px solid ${filter === f ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                  background: filter === f ? 'var(--color-accent-light)' : 'transparent',
-                  color: filter === f ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Task list */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--color-text-muted)' }}>
-            <div className="spinner" style={{ width: '32px', height: '32px', margin: '0 auto 1rem', borderWidth: '3px' }} />
-            <p>Loading tasks...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '4rem 2rem',
-            background: 'var(--color-card)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius)',
-            color: 'var(--color-text-muted)',
-          }}>
-            <ClipboardList size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-            <p style={{ fontSize: '1rem', fontWeight: 600 }}>
-              {search || filter !== 'all' ? 'No tasks match your filters.' : 'No tasks yet!'}
-            </p>
-            {!search && filter === 'all' && (
-              <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                Click <strong>"Add Task"</strong> to get started.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {filtered.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onToggle={handleToggle}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
+        <button className="btn btn-primary" onClick={openCreate}>
+          <Plus size={16} /> Add Entry
+        </button>
       </div>
 
-      <TaskModal
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+            <div key={i} className="stat-card" style={{ height: '100px', background: 'var(--card)' }}>
+              <div style={{ height: '12px', width: '60%', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', marginBottom: '0.75rem' }} />
+              <div style={{ height: '28px', width: '40%', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }} />
+            </div>
+          ))
+          : statCards.map(({ label, value, icon: Icon, color, bg, sub }) => (
+            <div key={label} className="stat-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+                <div style={{ width: '34px', height: '34px', background: bg, borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={17} color={color} />
+                </div>
+              </div>
+              <div style={{ fontSize: '1.55rem', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                {value}
+              </div>
+              <p style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginTop: '0.4rem' }}>{sub}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      {/* Filters bar */}
+      <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
+          <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+          <input className="field" placeholder="Search entries..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: '2.2rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }} />
+        </div>
+
+        {/* Date range */}
+        <select className="field" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+
+        {/* Status */}
+        <select className="field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+
+        {/* Category */}
+        <select className="field" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="">All Categories</option>
+          {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+        </select>
+
+        {/* Sort */}
+        <select className="field" value={sort} onChange={(e) => setSort(e.target.value)}
+          style={{ width: 'auto', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+        </select>
+      </div>
+
+      {/* Entry list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-2)' }}>
+          <div className="spinner" style={{ width: '32px', height: '32px', margin: '0 auto 1rem', borderWidth: '3px' }} />
+          <p>Loading entries...</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '4rem 2rem',
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)', color: 'var(--text-2)',
+        }}>
+          <Calendar size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text)' }}>No entries found</p>
+          <p style={{ fontSize: '0.85rem', marginTop: '0.4rem' }}>
+            {search || statusFilter || categoryFilter || dateFilter
+              ? 'Try adjusting your filters.'
+              : 'Click "Add Entry" to track your first activity.'}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          {entries.map((entry) => (
+            <EntryCard key={entry.id} entry={entry} onEdit={openEdit} onDelete={handleDelete} onToggle={handleToggle} />
+          ))}
+        </div>
+      )}
+
+      <EntryModal
         isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditTask(null); }}
-        onSubmit={editTask ? handleUpdate : handleCreate}
-        editTask={editTask}
+        onClose={() => { setModalOpen(false); setEditEntry(null); }}
+        onSubmit={editEntry ? handleUpdate : handleCreate}
+        editEntry={editEntry}
         loading={saving}
       />
     </div>
