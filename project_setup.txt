@@ -59,3 +59,5 @@ Open a NEW terminal window and run the following commands:
 The frontend web app will now be running at http://localhost:5173
 
 Open your browser and go to http://localhost:5173 to use the application!
+Email: demo2@taskflow.com
+Password: password123
