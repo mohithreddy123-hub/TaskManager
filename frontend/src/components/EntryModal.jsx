@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, IndianRupee } from 'lucide-react';
+import { X, IndianRupee, ListChecks } from 'lucide-react';
 import { CATEGORIES, todayISO } from '../utils/constants';
 
-const EMPTY = { title: '', description: '', amount: '', category: 'food', status: 'pending', date: todayISO() };
+const EMPTY = { entry_type: 'expense', title: '', description: '', amount: '', category: 'food', status: 'pending', date: todayISO() };
 
 export default function EntryModal({ isOpen, onClose, onSubmit, editEntry, loading }) {
   const [form, setForm] = useState(EMPTY);
@@ -10,12 +10,13 @@ export default function EntryModal({ isOpen, onClose, onSubmit, editEntry, loadi
   useEffect(() => {
     if (editEntry) {
       setForm({
+        entry_type: editEntry.entry_type || 'expense',
         title: editEntry.title,
         description: editEntry.description || '',
         amount: editEntry.amount,
-        category: editEntry.category,
+        category: editEntry.category || '',
         status: editEntry.status,
-        date: editEntry.date,
+        date: editEntry.date || '',
       });
     } else {
       setForm({ ...EMPTY, date: todayISO() });
@@ -29,7 +30,19 @@ export default function EntryModal({ isOpen, onClose, onSubmit, editEntry, loadi
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    onSubmit({ ...form, amount: parseFloat(form.amount) || 0 });
+    
+    // Cleanup payload based on entry type
+    const payload = { ...form };
+    if (payload.entry_type === 'expense') {
+      payload.amount = parseFloat(payload.amount) || 0;
+      if (!payload.category) payload.category = 'other';
+    } else {
+      payload.amount = 0; // Not needed for tasks
+      if (!payload.category) payload.category = null;
+      if (!payload.date) payload.date = null;
+    }
+    
+    onSubmit(payload);
   };
 
   return (
@@ -65,43 +78,84 @@ export default function EntryModal({ isOpen, onClose, onSubmit, editEntry, loadi
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
+            {/* Type Selection */}
+            {!editEntry && (
+              <div>
+                <label className="label">Entry Type</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className={`btn ${form.entry_type === 'expense' ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ flex: 1 }}
+                    onClick={() => set('entry_type', 'expense')}
+                  >
+                    <IndianRupee size={16} /> Expense
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${form.entry_type === 'task' ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ flex: 1 }}
+                    onClick={() => set('entry_type', 'task')}
+                  >
+                    <ListChecks size={16} /> Task
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Title */}
             <div>
               <label className="label">Title *</label>
-              <input className="field" placeholder="e.g. Bought groceries, Gym session..." value={form.title}
+              <input className="field" placeholder={form.entry_type === 'expense' ? "e.g. Bought groceries..." : "e.g. Prepare presentation..."} value={form.title}
                 onChange={(e) => set('title', e.target.value)} required autoFocus />
             </div>
 
-            {/* Amount + Category row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-              <div>
-                <label className="label">Amount (₹)</label>
-                <div style={{ position: 'relative' }}>
-                  <IndianRupee size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-                  <input className="field field-icon" type="number" min="0" step="0.01"
-                    placeholder="0" value={form.amount} onChange={(e) => set('amount', e.target.value)} />
+            {/* Amount + Category row (Expense) */}
+            {form.entry_type === 'expense' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                <div>
+                  <label className="label">Amount (₹) *</label>
+                  <div style={{ position: 'relative' }}>
+                    <IndianRupee size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+                    <input className="field field-icon" type="number" min="0" step="0.01"
+                      placeholder="0" value={form.amount} onChange={(e) => set('amount', e.target.value)} required />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Category *</label>
+                  <select className="field" value={form.category} onChange={(e) => set('category', e.target.value)} required>
+                    {CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+            )}
+
+            {/* Category only (Task) */}
+            {form.entry_type === 'task' && (
               <div>
-                <label className="label">Category</label>
+                <label className="label">Category (Optional)</label>
                 <select className="field" value={form.category} onChange={(e) => set('category', e.target.value)}>
+                  <option value="">No Category</option>
                   {CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
                   ))}
                 </select>
               </div>
-            </div>
+            )}
 
             {/* Date + Status row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
               <div>
-                <label className="label">Date</label>
-                <input className="field" type="date" value={form.date} onChange={(e) => set('date', e.target.value)} required />
+                <label className="label">{form.entry_type === 'expense' ? 'Date *' : 'Due Date (Optional)'}</label>
+                <input className="field" type="date" value={form.date} onChange={(e) => set('date', e.target.value)} required={form.entry_type === 'expense'} />
               </div>
               <div>
                 <label className="label">Status</label>
                 <select className="field" value={form.status} onChange={(e) => set('status', e.target.value)}>
                   <option value="pending">⏳ Pending</option>
+                  <option value="in_progress">🚧 In Progress</option>
                   <option value="completed">✅ Completed</option>
                 </select>
               </div>

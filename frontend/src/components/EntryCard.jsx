@@ -1,9 +1,10 @@
-import { Pencil, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Pencil, Trash2, CheckCircle2, Circle, Clock, ListChecks, IndianRupee } from 'lucide-react';
 import { getCategoryMeta, formatCurrency, formatDate } from '../utils/constants';
 
 export default function EntryCard({ entry, onEdit, onDelete, onToggle }) {
-  const cat = getCategoryMeta(entry.category);
+  const cat = getCategoryMeta(entry.category || 'other');
   const isCompleted = entry.status === 'completed';
+  const isInProgress = entry.status === 'in_progress';
 
   return (
     <div
@@ -18,23 +19,28 @@ export default function EntryCard({ entry, onEdit, onDelete, onToggle }) {
       >
         {isCompleted
           ? <CheckCircle2 size={21} color="var(--success)" />
+          : isInProgress 
+          ? <Clock size={21} color="#818cf8" />
           : <Circle size={21} color="var(--text-3)" />
         }
       </button>
 
       {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: Title + Amount */}
+        {/* Row 1: Title + Amount/Type */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.4rem' }}>
-          <h3 style={{
-            fontSize: '0.92rem', fontWeight: 600,
-            color: isCompleted ? 'var(--text-3)' : 'var(--text)',
-            textDecoration: isCompleted ? 'line-through' : 'none',
-            wordBreak: 'break-word',
-          }}>
-            {entry.title}
-          </h3>
-          {parseFloat(entry.amount) > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {entry.entry_type === 'task' ? <ListChecks size={15} color="var(--text-3)" /> : <IndianRupee size={15} color="var(--text-3)" />}
+            <h3 style={{
+              fontSize: '0.92rem', fontWeight: 600,
+              color: isCompleted ? 'var(--text-3)' : 'var(--text)',
+              textDecoration: isCompleted ? 'line-through' : 'none',
+              wordBreak: 'break-word',
+            }}>
+              {entry.title}
+            </h3>
+          </div>
+          {entry.entry_type === 'expense' && parseFloat(entry.amount) > 0 && (
             <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent)', flexShrink: 0 }}>
               {formatCurrency(entry.amount)}
             </span>
@@ -51,19 +57,23 @@ export default function EntryCard({ entry, onEdit, onDelete, onToggle }) {
         {/* Meta row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {/* Category badge */}
-          <span className={`badge ${cat.colorClass}`} style={{ fontSize: '0.72rem', fontWeight: 700 }}>
-            {cat.emoji} {cat.label}
-          </span>
+          {entry.category && (
+            <span className={`badge ${cat.colorClass}`} style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+              {cat.emoji} {cat.label}
+            </span>
+          )}
 
           {/* Status badge */}
-          <span className={`badge ${isCompleted ? 'badge-completed' : 'badge-pending'}`}>
-            {isCompleted ? '✓ Completed' : '⏳ Pending'}
+          <span className={`badge ${isCompleted ? 'badge-completed' : isInProgress ? 'badge-in-progress' : 'badge-pending'}`}>
+            {isCompleted ? '✓ Completed' : isInProgress ? '🚧 In Progress' : '⏳ Pending'}
           </span>
 
           {/* Date */}
-          <span style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginLeft: 'auto' }}>
-            {formatDate(entry.date)}
-          </span>
+          {entry.date && (
+             <span style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginLeft: 'auto' }}>
+               {entry.entry_type === 'task' ? `Due: ${formatDate(entry.date)}` : formatDate(entry.date)}
+             </span>
+          )}
         </div>
       </div>
 
