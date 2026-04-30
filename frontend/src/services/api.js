@@ -7,43 +7,44 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
+// ── Interceptors ────────────────────────────────────────────────────────────
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Handle 401 — auto logout
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.clear();
       window.location.href = '/login';
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
 
-// ── Auth ───────────────────────────────────────────────────────────────────
+// ── Auth ────────────────────────────────────────────────────────────────────
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
+  register: (d) => api.post('/auth/register', d),
+  login: (d) => api.post('/auth/login', d),
   getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
+  updateProfile: (d) => api.put('/auth/profile', d),
+  changePassword: (d) => api.post('/auth/change-password', d),
 };
 
-// ── Tasks ──────────────────────────────────────────────────────────────────
-export const tasksAPI = {
-  getAll: () => api.get('/tasks'),
-  create: (data) => api.post('/tasks', data),
-  update: (id, data) => api.put(`/tasks/${id}`, data),
-  delete: (id) => api.delete(`/tasks/${id}`),
+// ── Dashboard ────────────────────────────────────────────────────────────────
+export const dashboardAPI = {
+  getSummary: () => api.get('/dashboard'),
+};
+
+// ── Entries ──────────────────────────────────────────────────────────────────
+export const entriesAPI = {
+  getAll: (params = {}) => api.get('/entries', { params }),
+  create: (d) => api.post('/entries', d),
+  update: (id, d) => api.put(`/entries/${id}`, d),
+  delete: (id) => api.delete(`/entries/${id}`),
 };
 
 export default api;
