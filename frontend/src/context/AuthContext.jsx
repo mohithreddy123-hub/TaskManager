@@ -1,20 +1,16 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user')) || null;
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem('user')) || null; }
+    catch { return null; }
   });
-  const [loading, setLoading] = useState(false);
 
-  const login = async (credentials) => {
-    const { data } = await authAPI.login(credentials);
+  const login = async (creds) => {
+    const { data } = await authAPI.login(creds);
     localStorage.setItem('access_token', data.tokens.access);
     localStorage.setItem('refresh_token', data.tokens.refresh);
     localStorage.setItem('user', JSON.stringify(data.user));
@@ -32,9 +28,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    localStorage.clear();
     setUser(null);
   };
 
@@ -47,7 +41,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, login, register, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
@@ -55,6 +49,6 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 };
