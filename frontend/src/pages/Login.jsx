@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { CheckSquare, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Zap } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -19,8 +19,7 @@ export default function Login() {
       toast.success('Welcome back! 👋');
       navigate('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed. Check your credentials.';
-      toast.error(msg);
+      toast.error(err.response?.data?.error || 'Login failed.');
     } finally {
       setLoading(false);
     }
@@ -28,100 +27,70 @@ export default function Login() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'var(--color-bg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg)',
+      backgroundImage: 'radial-gradient(ellipse at 30% 60%, rgba(79,142,247,0.07) 0%, transparent 55%), radial-gradient(ellipse at 75% 25%, rgba(124,111,247,0.06) 0%, transparent 50%)',
       padding: '2rem',
-      backgroundImage: 'radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.06) 0%, transparent 50%)',
     }}>
-      <div className="animate-fade-in" style={{ width: '100%', maxWidth: '420px' }}>
+      <div className="fade-up" style={{ width: '100%', maxWidth: '400px' }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{
-            background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)',
-            borderRadius: '16px',
-            width: '60px', height: '60px',
+            width: '52px', height: '52px',
+            background: 'linear-gradient(135deg, #4f8ef7, #7c6ff7)',
+            borderRadius: '14px', margin: '0 auto 1rem',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 1rem',
-            boxShadow: '0 8px 32px rgba(108,99,255,0.4)',
+            boxShadow: '0 8px 32px rgba(79,142,247,0.4)',
           }}>
-            <CheckSquare size={30} color="#fff" />
+            <Zap size={26} color="#fff" fill="#fff" />
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.5px' }}>
-            Welcome back
-          </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginTop: '0.4rem' }}>
-            Sign in to your TaskFlow account
-          </p>
+          <h1 style={{ fontSize: '1.6rem', marginBottom: '0.35rem' }}>Welcome back</h1>
+          <p style={{ fontSize: '0.875rem' }}>Sign in to your TrackNest account</p>
         </div>
 
         {/* Card */}
         <div style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius)',
           padding: '2rem',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
         }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.4rem' }}>
-                Email Address
-              </label>
+              <label className="label">Email Address</label>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                <input
-                  className="input-field"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                  style={{ paddingLeft: '2.4rem' }}
-                />
+                <Mail size={15} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+                <input className="field field-icon" type="email" placeholder="you@example.com"
+                  value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
               </div>
             </div>
-
             <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.4rem' }}>
-                Password
-              </label>
+              <label className="label">Password</label>
               <div style={{ position: 'relative' }}>
-                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                <input
-                  className="input-field"
-                  type={showPwd ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                  style={{ paddingLeft: '2.4rem', paddingRight: '2.8rem' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
-                >
-                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                <Lock size={15} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+                <input className="field field-icon" type={showPwd ? 'text' : 'password'} placeholder="••••••••"
+                  value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required style={{ paddingRight: '2.8rem' }} />
+                <button type="button" onClick={() => setShowPwd(!showPwd)}
+                  style={{ position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
+                  {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
-
-            <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', fontSize: '0.95rem', marginTop: '0.3rem' }}>
-              {loading ? <span className="spinner" /> : null}
+            <button type="submit" className="btn btn-primary" disabled={loading}
+              style={{ width: '100%', padding: '0.75rem', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+              {loading && <span className="spinner" />}
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+        <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem' }}>
           Don't have an account?{' '}
-          <Link to="/register" style={{ color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>
-            Create one
+          <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+            Create one free
           </Link>
         </p>
       </div>
