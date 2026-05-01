@@ -34,35 +34,78 @@ A full-stack, responsive, multi-user application designed to track both daily pr
 ```text
 TaskManager/
 ├── backend/                       # Django Backend
-│   ├── taskmanager/               # Core Django settings & routing
-│   │   ├── settings.py            # MySQL, JWT, logging, and CORS config
-│   │   └── urls.py                # Global URL routing
-│   ├── tasks/                     # Main application logic
-│   │   ├── models.py              # DailyEntry model (Tasks & Expenses)
-│   │   ├── views.py               # REST API endpoints & aggregations
-│   │   ├── serializers.py         # Data validation & serialization
-│   │   ├── exceptions.py          # Custom global exception handler
-│   │   └── migrations/            # Database schema tracking
 │   ├── manage.py                  # Django CLI entry point
-│   └── requirements.txt           # Python dependencies (if exported)
+│   ├── taskmanager/               # Core Django config
+│   │   ├── __init__.py
+│   │   ├── asgi.py                # ASGI entry point
+│   │   ├── settings.py            # Main application settings
+│   │   ├── urls.py                # Global routing
+│   │   └── wsgi.py                # WSGI entry point
+│   └── tasks/                     # Primary app logic
+│       ├── __init__.py
+│       ├── admin.py               # Django admin configuration
+│       ├── apps.py                # App configuration
+│       ├── auth_urls.py           # Authentication routes
+│       ├── exceptions.py          # Custom global exception handler
+│       ├── models.py              # Database models (DailyEntry)
+│       ├── serializers.py         # DRF serializers & validation
+│       ├── tests.py               # Test suites
+│       ├── urls.py                # App-specific routes
+│       ├── views.py               # API endpoints
+│       └── migrations/            # Database schema migrations
+│           ├── __init__.py
+│           ├── 0001_initial.py
+│           ├── 0002_dailyentry_delete_task.py
+│           ├── 0003_add_db_indexes.py
+│           └── 0004_add_entry_type.py
 │
 ├── frontend/                      # React Frontend (Vite)
-│   ├── public/                    # Static assets (Favicon, etc.)
-│   ├── src/                       # Main source code
-│   │   ├── components/            # Reusable UI (EntryCard, EntryModal)
-│   │   ├── context/               # Global state (AuthContext)
-│   │   ├── layouts/               # Page wrappers (AppLayout with sidebar)
-│   │   ├── pages/                 # Full views (Dashboard, Login, Entries)
-│   │   ├── services/              # API utilities (Axios interceptors)
-│   │   ├── utils/                 # Constants and formatter functions
-│   │   ├── App.jsx                # React Router setup
-│   │   ├── main.jsx               # React entry point
-│   │   └── index.css              # Global styles, variables, and animations
+│   ├── .gitignore                 # Frontend-specific Git ignores
+│   ├── index.html                 # Main HTML template
 │   ├── package.json               # Node.js dependencies
-│   └── vite.config.js             # Vite build configuration
+│   ├── package-lock.json          # Dependency lockfile
+│   ├── tsconfig.json              # TypeScript config (if used)
+│   ├── vite.config.js             # Vite build configuration
+│   ├── public/                    # Static public assets
+│   │   ├── favicon.svg            
+│   │   └── icons.svg
+│   └── src/                       # Source code
+│       ├── App.jsx                # React Router setup
+│       ├── main.jsx               # React DOM entry point
+│       ├── index.css              # Global styles & tailwind
+│       ├── style.css              # Legacy/additional styles
+│       ├── counter.ts             # Default Vite script (unused)
+│       ├── main.ts                # Default Vite script (unused)
+│       ├── assets/                # Internal static assets
+│       │   ├── hero.png
+│       │   ├── typescript.svg
+│       │   └── vite.svg
+│       ├── components/            # Reusable UI components
+│       │   ├── EntryCard.jsx      # Expense & Task card UI
+│       │   ├── EntryModal.jsx     # Add/Edit entry form
+│       │   ├── Navbar.jsx         # Top navigation bar
+│       │   ├── PrivateRoute.jsx   # Route protection wrapper
+│       │   ├── TaskCard.jsx       # Legacy task card
+│       │   └── TaskModal.jsx      # Legacy task modal
+│       ├── context/               # Global state providers
+│       │   └── AuthContext.jsx    # Authentication & Session state
+│       ├── layouts/               # High-level layouts
+│       │   └── AppLayout.jsx      # Main layout with sidebar
+│       ├── pages/                 # Full application views
+│       │   ├── Dashboard.jsx      # Stats and recent entries
+│       │   ├── Entries.jsx        # Full entry list with filters
+│       │   ├── Login.jsx          # Login page
+│       │   ├── Profile.jsx        # User profile & stats
+│       │   ├── Register.jsx       # Sign up page
+│       │   └── Settings.jsx       # User settings/password change
+│       ├── services/              # API utilities
+│       │   └── api.js             # Axios interceptors & HTTP calls
+│       └── utils/                 # Helper functions
+│           └── constants.js       # Formatting, icons, & static data
 │
-├── .gitignore                     # Git exclusion rules
-├── credentials.txt                # Local DB & Admin credentials (Ignored by Git)
+├── .gitignore                     # Root Git exclusion rules
+├── credentials.txt                # Database/Admin passwords (Ignored)
+├── project_setup.txt              # Setup notes
 └── README.md                      # This file
 ```
 
