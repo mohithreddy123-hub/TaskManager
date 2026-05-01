@@ -33,11 +33,37 @@ A full-stack, responsive, multi-user application designed to track both daily pr
 
 ```text
 TaskManager/
-├── backend/                     # Django project & REST APIs
-├── frontend/                    # React (Vite) SPA project
-├── .gitignore                   # Git exclusion rules
-├── credentials.txt              # Local DB & Admin credentials (Ignored by Git)
-└── README.md                    # This file
+├── backend/                       # Django Backend
+│   ├── taskmanager/               # Core Django settings & routing
+│   │   ├── settings.py            # MySQL, JWT, logging, and CORS config
+│   │   └── urls.py                # Global URL routing
+│   ├── tasks/                     # Main application logic
+│   │   ├── models.py              # DailyEntry model (Tasks & Expenses)
+│   │   ├── views.py               # REST API endpoints & aggregations
+│   │   ├── serializers.py         # Data validation & serialization
+│   │   ├── exceptions.py          # Custom global exception handler
+│   │   └── migrations/            # Database schema tracking
+│   ├── manage.py                  # Django CLI entry point
+│   └── requirements.txt           # Python dependencies (if exported)
+│
+├── frontend/                      # React Frontend (Vite)
+│   ├── public/                    # Static assets (Favicon, etc.)
+│   ├── src/                       # Main source code
+│   │   ├── components/            # Reusable UI (EntryCard, EntryModal)
+│   │   ├── context/               # Global state (AuthContext)
+│   │   ├── layouts/               # Page wrappers (AppLayout with sidebar)
+│   │   ├── pages/                 # Full views (Dashboard, Login, Entries)
+│   │   ├── services/              # API utilities (Axios interceptors)
+│   │   ├── utils/                 # Constants and formatter functions
+│   │   ├── App.jsx                # React Router setup
+│   │   ├── main.jsx               # React entry point
+│   │   └── index.css              # Global styles, variables, and animations
+│   ├── package.json               # Node.js dependencies
+│   └── vite.config.js             # Vite build configuration
+│
+├── .gitignore                     # Git exclusion rules
+├── credentials.txt                # Local DB & Admin credentials (Ignored by Git)
+└── README.md                      # This file
 ```
 
 ## 💻 How to Run Locally
