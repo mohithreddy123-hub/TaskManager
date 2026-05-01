@@ -1,48 +1,58 @@
-TaskFlow - Setup and Run Guide
-==============================
+TrackNest - Project Details & Setup Guide
+=========================================
 
-This document outlines the dependencies installed for this project and the steps to run it locally.
+🌟 ABOUT THE PROJECT
+--------------------
+TrackNest is a modern, full-stack personal productivity dashboard designed to unify two of the most important aspects of daily life: Task Management and Expense Tracking.
 
-📦 WHAT WAS INSTALLED
----------------------
+Instead of using two separate apps, TrackNest allows users to:
+1. Log Daily Expenses: Track amounts spent across various categories (food, bills, travel, etc.).
+2. Manage Productivity Tasks: Create tasks, set optional due dates, and track progress using a 3-tier status system (Pending, In Progress, Completed).
+
+Key Features:
+- Secure Authentication: JWT (JSON Web Tokens) with automatic background refreshing.
+- Data Isolation: Every user gets their own isolated environment.
+- Brute-Force Protection: API rate limiting ensures login security.
+- Real-Time Analytics: The dashboard aggregates data on the fly using complex database queries to display monthly spending, task completion rates, and category breakdowns.
+- Modern Aesthetics: A dark-themed, glassmorphic UI built with React and custom CSS.
+
+
+📦 WHAT WAS INSTALLED (Dependencies)
+------------------------------------
 
 ### Backend (Python / Django)
-The backend was scaffolded using Python and Django. The dependencies were installed using the following command:
+The backend was built using Python and Django. The dependencies were installed via:
 
-    pip install django djangorestframework djangorestframework-simplejwt django-cors-headers
+    pip install django djangorestframework djangorestframework-simplejwt django-cors-headers mysqlclient
 
 Packages explained:
-* django (The core web framework)
+* django (The core Python web framework)
 * djangorestframework (For building the REST APIs)
 * djangorestframework-simplejwt (For JSON Web Token authentication)
-* django-cors-headers (To allow the frontend to communicate with the backend)
+* django-cors-headers (To allow the frontend to communicate with the backend securely)
+* mysqlclient (The database driver connecting Django to the MySQL production database)
 
 ### Frontend (React / Vite)
 The frontend was scaffolded using Vite with the React template:
     npx -y create-vite@latest frontend -- --template react
 
-The dependencies were installed using the following commands inside the `frontend` folder:
+The dependencies were installed inside the `frontend` folder via:
     npm install axios react-router-dom react-hot-toast lucide-react
-    npm install -D tailwindcss @tailwindcss/vite
-    npm install @vitejs/plugin-react
 
 Packages explained:
 * react, react-dom (Core React libraries)
-* react-router-dom (For page navigation and routing)
-* axios (For making API requests to the backend)
-* react-hot-toast (For displaying success/error notification popups)
-* lucide-react (For SVG icons)
-* tailwindcss, @tailwindcss/vite (For styling the UI components)
-* @vitejs/plugin-react (Vite plugin for React support)
+* react-router-dom (For page navigation and SPA routing)
+* axios (For making API requests to the backend and intercepting tokens)
+* react-hot-toast (For displaying beautiful success/error notification popups)
+* lucide-react (For clean SVG icons used throughout the dashboard)
 
 
-🚀 HOW TO RUN THE PROJECT
--------------------------
-You will need to open TWO separate terminal windows to run both the backend and frontend at the same time.
+🚀 HOW TO RUN THE PROJECT LOCALLY
+---------------------------------
+You will need TWO separate terminal windows to run both the backend and frontend simultaneously. Ensure your local MySQL server is running before starting.
 
 ### Step 1: Run the Django Backend
-Open a terminal and run the following commands:
-1. Navigate to the backend folder:
+1. Open a terminal and navigate to the backend folder:
    cd C:\TaskManager\backend
 2. Start the Django development server:
    python manage.py runserver 8000
@@ -50,14 +60,16 @@ Open a terminal and run the following commands:
 The backend API will now be running at http://127.0.0.1:8000
 
 ### Step 2: Run the React Frontend
-Open a NEW terminal window and run the following commands:
-1. Navigate to the frontend folder:
+1. Open a NEW terminal window and navigate to the frontend folder:
    cd C:\TaskManager\frontend
 2. Start the Vite development server:
    npm run dev
 
 The frontend web app will now be running at http://localhost:5173
 
-Open your browser and go to http://localhost:5173 to use the application!
-Email: demo2@taskflow.com
-Password: password123
+
+🔑 CREDENTIALS
+--------------
+All sensitive information, including Django Admin passwords and MySQL connection strings, are stored safely inside the `credentials.txt` file located in the root of the project. 
+
+(Note: `credentials.txt` is hidden from GitHub via `.gitignore` for security purposes).
