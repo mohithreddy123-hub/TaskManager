@@ -6,12 +6,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import AnonRateThrottle
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.db.models import Sum, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, Count, Q
 from datetime import date, timedelta
 
 from .serializers import (
@@ -26,13 +27,33 @@ logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Throttle class for login (limits brute force attacks)
+# Throttle classes
 # ──────────────────────────────────────────────────────────────────────────────
 
 class LoginRateThrottle(AnonRateThrottle):
-    """Allow maximum 10 login attempts per minute per IP."""
+    """10 login attempts per minute per IP — brute force protection."""
     rate = '10/min'
     scope = 'login'
+
+
+class RegisterRateThrottle(AnonRateThrottle):
+    """5 register attempts per minute per IP — prevents mass account creation."""
+    rate = '5/min'
+    scope = 'register'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Pagination
+# ──────────────────────────────────────────────────────────────────────────────
+
+class EntryPagination(PageNumberPagination):
+    """
+    Page-based pagination for GET /api/entries.
+    Returns up to 20 entries per page. Clients can request more with ?page_size=.
+    """
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -57,8 +78,10 @@ def _build_token_response(user, http_status=status.HTTP_200_OK, message=''):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class RegisterView(APIView):
-    """POST /api/auth/register"""
+    """POST /api/auth/register — creates user and auto-logs in (returns tokens)"""
     permission_classes = [AllowAny]
+    # FIX: Register endpoint was not rate-limited; added RegisterRateThrottle
+    throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -74,7 +97,7 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
-    """POST /api/auth/login"""
+    """POST /api/auth/login — returns tokens + full user profile in one response"""
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]
 
@@ -88,8 +111,6 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Look up user by email — always use the same generic error
-        # to avoid leaking whether an email exists in the system
         try:
             user_obj = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -98,14 +119,12 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         except User.MultipleObjectsReturned:
-            # Should never happen due to unique validation, but handle defensively
             logger.error("Multiple users found for email: %s", email)
             return Response(
                 {'error': 'Account error. Please contact support.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Check if account is active
         if not user_obj.is_active:
             return Response(
                 {'error': 'This account has been deactivated.'},
@@ -122,6 +141,31 @@ class LoginView(APIView):
 
         logger.info("User logged in: %s", user.email)
         return _build_token_response(user, message='Login successful.')
+
+
+class LogoutView(APIView):
+    """
+    POST /api/auth/logout — blacklists the refresh token, invalidating the session.
+    FIX: There was no logout endpoint. Without this, refresh tokens live for 7 days
+    even after the user clicks 'Sign Out', which is a security vulnerability.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response(
+                {'error': 'Refresh token is required to logout.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info("User logged out: %s", request.user.email)
+        return Response({'message': 'Logged out successfully.'}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
@@ -187,26 +231,30 @@ class DashboardSummaryView(APIView):
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
 
-        # Single base queryset scoped to user — all further filters reuse this
+        # Single base queryset scoped to user
         entries = DailyEntry.objects.filter(user=user)
 
-        # Count queries (use the same queryset, Django caches smartly)
-        # Count queries for tasks
-        total_entries = entries.count()
-        total_tasks = entries.filter(entry_type='task').count()
-        completed_tasks = entries.filter(entry_type='task', status='completed').count()
-        in_progress_tasks = entries.filter(entry_type='task', status='in_progress').count()
-        pending_tasks = entries.filter(entry_type='task', status='pending').count()
+        # FIX: All counts done in a single query using conditional annotation
+        # instead of 5 separate .count() calls hitting the database 5 times.
+        from django.db.models import Case, When, IntegerField
+        task_stats = entries.filter(entry_type='task').aggregate(
+            total_tasks=Count('id'),
+            completed_tasks=Count(Case(When(status='completed', then=1), output_field=IntegerField())),
+            in_progress_tasks=Count(Case(When(status='in_progress', then=1), output_field=IntegerField())),
+            pending_tasks=Count(Case(When(status='pending', then=1), output_field=IntegerField())),
+        )
 
-        # Aggregate queries for expenses
-        expenses = entries.filter(entry_type='expense')
+        # Aggregate expense stats in minimal DB calls
         ZERO = decimal.Decimal('0.00')
-        total_expenses = expenses.aggregate(s=Sum('amount'))['s'] or ZERO
-        today_spending = expenses.filter(date=today).aggregate(s=Sum('amount'))['s'] or ZERO
-        week_spending = expenses.filter(date__gte=week_start).aggregate(s=Sum('amount'))['s'] or ZERO
-        month_spending = expenses.filter(date__gte=month_start).aggregate(s=Sum('amount'))['s'] or ZERO
+        expenses = entries.filter(entry_type='expense')
+        expense_stats = expenses.aggregate(
+            total=Sum('amount'),
+            today=Sum('amount', filter=Q(date=today)),
+            week=Sum('amount', filter=Q(date__gte=week_start)),
+            month=Sum('amount', filter=Q(date__gte=month_start)),
+        )
 
-        # Category breakdown only for expenses
+        # Category breakdown — single GROUP BY query
         category_data = (
             expenses
             .values('category')
@@ -219,15 +267,15 @@ class DashboardSummaryView(APIView):
         }
 
         return Response({
-            'total_entries': total_entries,
-            'total_tasks': total_tasks,
-            'completed_tasks': completed_tasks,
-            'in_progress_tasks': in_progress_tasks,
-            'pending_tasks': pending_tasks,
-            'total_expenses': float(total_expenses),
-            'today_spending': float(today_spending),
-            'week_spending': float(week_spending),
-            'month_spending': float(month_spending),
+            'total_entries': entries.count(),
+            'total_tasks': task_stats['total_tasks'],
+            'completed_tasks': task_stats['completed_tasks'],
+            'in_progress_tasks': task_stats['in_progress_tasks'],
+            'pending_tasks': task_stats['pending_tasks'],
+            'total_expenses': float(expense_stats['total'] or ZERO),
+            'today_spending': float(expense_stats['today'] or ZERO),
+            'week_spending': float(expense_stats['week'] or ZERO),
+            'month_spending': float(expense_stats['month'] or ZERO),
             'category_totals': category_totals,
         })
 
@@ -238,13 +286,12 @@ class DashboardSummaryView(APIView):
 
 class EntryListCreateView(APIView):
     """
-    GET  /api/entries — list user's entries with optional filtering/search/sort
+    GET  /api/entries — paginated list of user's entries with filtering/search/sort
     POST /api/entries — create a new entry
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Always scope to the authenticated user — no cross-user data leakage
         entries = DailyEntry.objects.filter(user=request.user)
 
         # ── Filtering ──────────────────────────────────────────────────────────
@@ -258,24 +305,17 @@ class EntryListCreateView(APIView):
         if entry_type_filter in DailyEntry.VALID_TYPES:
             entries = entries.filter(entry_type=entry_type_filter)
 
-        # Validate status filter against known values
-        if status_filter:
-            if status_filter in DailyEntry.VALID_STATUSES:
-                entries = entries.filter(status=status_filter)
-            # silently ignore unknown status values (don't error, just ignore)
+        if status_filter and status_filter in DailyEntry.VALID_STATUSES:
+            entries = entries.filter(status=status_filter)
 
-        # Validate category filter
-        if category_filter:
-            if category_filter in DailyEntry.VALID_CATEGORIES:
-                entries = entries.filter(category=category_filter)
+        if category_filter and category_filter in DailyEntry.VALID_CATEGORIES:
+            entries = entries.filter(category=category_filter)
 
-        # Full-text search on title and description
         if search:
             entries = entries.filter(
                 Q(title__icontains=search) | Q(description__icontains=search)
             )
 
-        # Date range filtering
         if date_filter:
             today = date.today()
             if date_filter == 'today':
@@ -285,11 +325,18 @@ class EntryListCreateView(APIView):
             elif date_filter == 'month':
                 entries = entries.filter(date__gte=today.replace(day=1))
 
-        # Sorting
         if sort == 'oldest':
             entries = entries.order_by('date', 'created_at')
         else:
             entries = entries.order_by('-date', '-created_at')
+
+        # FIX: Apply pagination — without this, fetching 1000+ entries at once
+        # will cause memory spikes and slow API responses.
+        paginator = EntryPagination()
+        page = paginator.paginate_queryset(entries, request)
+        if page is not None:
+            serializer = DailyEntrySerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
 
         serializer = DailyEntrySerializer(entries, many=True)
         return Response(serializer.data)
@@ -315,8 +362,8 @@ class EntryDetailView(APIView):
     def _get_entry(self, pk, user):
         """
         Fetch entry by PK scoped to the requesting user.
-        Returns None if not found or belongs to another user — preventing
-        enumeration attacks (user cannot tell if entry exists for another user).
+        Returns None if not found or belongs to another user — prevents
+        enumeration attacks.
         """
         try:
             return DailyEntry.objects.get(pk=pk, user=user)
@@ -326,19 +373,13 @@ class EntryDetailView(APIView):
     def get(self, request, pk):
         entry = self._get_entry(pk, request.user)
         if entry is None:
-            return Response(
-                {'error': 'Entry not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({'error': 'Entry not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(DailyEntrySerializer(entry).data)
 
     def put(self, request, pk):
         entry = self._get_entry(pk, request.user)
         if entry is None:
-            return Response(
-                {'error': 'Entry not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({'error': 'Entry not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = DailyEntrySerializer(entry, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -351,14 +392,8 @@ class EntryDetailView(APIView):
     def delete(self, request, pk):
         entry = self._get_entry(pk, request.user)
         if entry is None:
-            return Response(
-                {'error': 'Entry not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({'error': 'Entry not found.'}, status=status.HTTP_404_NOT_FOUND)
         entry_id = entry.id
         entry.delete()
         logger.info("Entry deleted: id=%s by user=%s", entry_id, request.user.email)
-        return Response(
-            {'message': 'Entry deleted successfully.'},
-            status=status.HTTP_200_OK,
-        )
+        return Response({'message': 'Entry deleted successfully.'}, status=status.HTTP_200_OK)
