@@ -8,15 +8,24 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Security ─────────────────────────────────────────────────────────────────
-# In production, move SECRET_KEY to an environment variable.
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-taskmanager-secret-key-change-in-production'
-)
+# FIX 1: SECRET_KEY has no fallback insecure value in production — it raises
+# an error if not set, forcing the developer to set it properly.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    # Only allow a default in local development, never in production
+    import sys
+    if 'test' in sys.argv or os.environ.get('DJANGO_ENV') != 'production':
+        SECRET_KEY = 'django-insecure-local-dev-key-do-not-use-in-production'
+    else:
+        raise ValueError("DJANGO_SECRET_KEY environment variable is not set!")
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+# FIX 2: DEBUG defaults to False — must be explicitly opted in for development.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+# FIX 3: ALLOWED_HOSTS no longer includes '*' wildcard — that is a security hole.
+ALLOWED_HOSTS = os.environ.get(
+    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1'
+).split(',')
 
 # ─── Applications ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -29,7 +38,8 @@ INSTALLED_APPS = [
 
     # Third-party
     'rest_framework',
-    'rest_framework_simplejwt',
+    # FIX 4: Add token_blacklist so we can invalidate refresh tokens on logout.
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
     # Local
@@ -81,8 +91,6 @@ DATABASES = {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
-        # Keep connections alive for 60 seconds — improves performance
-        # significantly on repeated API calls by reusing DB connections.
         'CONN_MAX_AGE': 60,
     }
 }
@@ -97,7 +105,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # ─── Internationalisation ──────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Kolkata'   # IST — correct for an India-based app
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
@@ -146,40 +154,45 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    # Custom exception handler for consistent {error: ...} responses
     'EXCEPTION_HANDLER': 'tasks.exceptions.custom_exception_handler',
-    # Throttling — rate limit protection
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '60/min',     # 60 requests/min for anonymous users
-        'user': '300/min',    # 300 requests/min for authenticated users
-        'login': '10/min',    # 10 login attempts/min (brute force protection)
+        'anon': '60/min',
+        'user': '300/min',
+        'login': '10/min',
+        # FIX 5: Add throttle scope for register endpoint separately.
+        'register': '5/min',
     },
-    # Only JSON responses — removes the browsable HTML API in dev
-    # (keeps it cleaner; remove this line to re-enable browsable API)
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    # FIX 6: Add page-based pagination for GET /api/entries to scale to 100+ records.
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 # ─── Simple JWT ───────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    # FIX 7: Reduce access token lifetime from 1 day to 15 minutes.
+    # A 1-day access token is equivalent to no expiry — if stolen, it's usable all day.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
+    # FIX 8: Enable blacklisting so old refresh tokens are invalidated after rotation.
+    # Without this, a stolen refresh token can be used forever.
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'UPDATE_LAST_LOGIN': True,        # Updates last_login field on token refresh
+    'UPDATE_LAST_LOGIN': True,
 }
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:5173,http://127.0.0.1:5173'
+).split(',')
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
