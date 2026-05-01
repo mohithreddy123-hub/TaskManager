@@ -27,7 +27,15 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      try {
+        await authAPI.logout({ refresh: refreshToken });
+      } catch (_) {
+        // Even if the server call fails, we still clear local state
+      }
+    }
     localStorage.clear();
     setUser(null);
   };
