@@ -1,5 +1,5 @@
 """
-Django settings for TrackNest project.
+Django settings for TrackNest project — production-ready.
 """
 import os
 from pathlib import Path
@@ -8,21 +8,16 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Security ─────────────────────────────────────────────────────────────────
-# FIX 1: SECRET_KEY has no fallback insecure value in production — it raises
-# an error if not set, forcing the developer to set it properly.
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
-    # Only allow a default in local development, never in production
     import sys
     if 'test' in sys.argv or os.environ.get('DJANGO_ENV') != 'production':
         SECRET_KEY = 'django-insecure-local-dev-key-do-not-use-in-production'
     else:
         raise ValueError("DJANGO_SECRET_KEY environment variable is not set!")
 
-# FIX 2: DEBUG defaults to False — must be explicitly opted in for development.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-# FIX 3: ALLOWED_HOSTS no longer includes '*' wildcard — that is a security hole.
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1'
 ).split(',')
@@ -38,7 +33,6 @@ INSTALLED_APPS = [
 
     # Third-party
     'rest_framework',
-    # FIX 4: Add token_blacklist so we can invalidate refresh tokens on logout.
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
@@ -50,6 +44,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',      # Must be first
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise serves static files directly from Django in production
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -84,16 +80,22 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.environ.get('DB_NAME', 'tracknest_db'),
         'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'Root!@#$%12345'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            # Required for SSL connections to cloud MySQL (Aiven/PlanetScale/etc)
+            'ssl': {'ca': os.environ.get('MYSQL_SSL_CA', '')},
         },
         'CONN_MAX_AGE': 60,
     }
 }
+
+# Remove SSL option if no CA cert is provided (local dev)
+if not os.environ.get('MYSQL_SSL_CA'):
+    DATABASES['default']['OPTIONS'].pop('ssl', None)
 
 # ─── Password Validators ───────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
@@ -109,8 +111,24 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+# ─── Static Files (WhiteNoise for production) ─────────────────────────────────
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# WhiteNoise compressed caching — makes static files load faster in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ─── Production HTTPS Security (only active when DEBUG=False on Render) ────────
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000        # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 LOGGING = {
@@ -163,26 +181,20 @@ REST_FRAMEWORK = {
         'anon': '60/min',
         'user': '300/min',
         'login': '10/min',
-        # FIX 5: Add throttle scope for register endpoint separately.
         'register': '5/min',
     },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
-    # FIX 6: Add page-based pagination for GET /api/entries to scale to 100+ records.
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
 
 # ─── Simple JWT ───────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    # FIX 7: Reduce access token lifetime from 1 day to 15 minutes.
-    # A 1-day access token is equivalent to no expiry — if stolen, it's usable all day.
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    # FIX 8: Enable blacklisting so old refresh tokens are invalidated after rotation.
-    # Without this, a stolen refresh token can be used forever.
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'UPDATE_LAST_LOGIN': True,
