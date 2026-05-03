@@ -74,7 +74,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'taskmanager.wsgi.application'
 
-# ─── Database (MySQL) ─────────────────────────────────────────────────────────
+# ─── Database (MySQL — Aiven Cloud in production) ─────────────────────────────
+_db_options = {
+    'charset': 'utf8mb4',
+    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+}
+# Aiven requires ssl-mode=REQUIRED. Set MYSQL_SSL=true in Render env vars.
+if os.environ.get('MYSQL_SSL', 'false').lower() == 'true':
+    _db_options['ssl'] = {'ssl_disabled': False}
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -83,19 +91,10 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            # Required for SSL connections to cloud MySQL (Aiven/PlanetScale/etc)
-            'ssl': {'ca': os.environ.get('MYSQL_SSL_CA', '')},
-        },
+        'OPTIONS': _db_options,
         'CONN_MAX_AGE': 60,
     }
 }
-
-# Remove SSL option if no CA cert is provided (local dev)
-if not os.environ.get('MYSQL_SSL_CA'):
-    DATABASES['default']['OPTIONS'].pop('ssl', None)
 
 # ─── Password Validators ───────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
