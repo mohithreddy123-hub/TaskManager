@@ -61,16 +61,74 @@ npm install axios react-router-dom react-hot-toast lucide-react
 
 ```text
 TaskManager/
-├── backend/                       # Django REST API
+├── backend/                       # Django Backend
+│   ├── manage.py                  # Django CLI entry point
 │   ├── build.sh                   # Render deployment script
 │   ├── requirements.txt           # Python dependencies
-│   ├── taskmanager/               # Project configuration
-│   └── tasks/                     # Application logic & Models
-├── frontend/                      # React Web App
-│   ├── src/                       # Components, Context, Pages
+│   ├── taskmanager/               # Core Django config
+│   │   ├── __init__.py
+│   │   ├── asgi.py                # ASGI entry point
+│   │   ├── settings.py            # Main application settings
+│   │   ├── urls.py                # Global routing
+│   │   └── wsgi.py                # WSGI entry point
+│   └── tasks/                     # Primary app logic
+│       ├── __init__.py
+│       ├── admin.py               # Django admin configuration
+│       ├── apps.py                # App configuration
+│       ├── auth_urls.py           # Authentication routes
+│       ├── exceptions.py          # Custom global exception handler
+│       ├── models.py              # Database models (DailyEntry)
+│       ├── serializers.py         # DRF serializers & validation
+│       ├── tests.py               # Test suites
+│       ├── urls.py                # App-specific routes
+│       ├── views.py               # API endpoints
+│       └── migrations/            # Database schema migrations
+│           ├── __init__.py
+│           ├── 0001_initial.py
+│           ├── 0002_dailyentry_delete_task.py
+│           ├── 0003_add_db_indexes.py
+│           └── 0004_add_entry_type.py
+│
+├── frontend/                      # React Frontend (Vite)
+│   ├── .gitignore                 # Frontend-specific Git ignores
+│   ├── index.html                 # Main HTML template
+│   ├── package.json               # Node.js dependencies
+│   ├── package-lock.json          # Dependency lockfile
+│   ├── tsconfig.json              # TypeScript config (if used)
+│   ├── vite.config.js             # Vite build configuration
 │   ├── .env.production            # Production API URL
-│   └── vite.config.js             # Vite configuration
-└── .gitignore                     # Git exclusion rules
+│   ├── public/                    # Static public assets
+│   │   ├── favicon.svg            
+│   │   └── icons.svg
+│   └── src/                       # Source code
+│       ├── App.jsx                # React Router setup
+│       ├── main.jsx               # React DOM entry point
+│       ├── index.css              # Global styles
+│       ├── components/            # Reusable UI components
+│       │   ├── EntryCard.jsx      # Expense & Task card UI
+│       │   ├── EntryModal.jsx     # Add/Edit entry form
+│       │   ├── Navbar.jsx         # Top navigation bar
+│       │   └── PrivateRoute.jsx   # Route protection wrapper
+│       ├── context/               # Global state providers
+│       │   └── AuthContext.jsx    # Authentication & Session state
+│       ├── layouts/               # High-level layouts
+│       │   └── AppLayout.jsx      # Main layout with sidebar
+│       ├── pages/                 # Full application views
+│       │   ├── Dashboard.jsx      # Stats and recent entries
+│       │   ├── Entries.jsx        # Full entry list with filters
+│       │   ├── Login.jsx          # Login page
+│       │   ├── Profile.jsx        # User profile & stats
+│       │   ├── Register.jsx       # Sign up page
+│       │   └── Settings.jsx       # User settings/password change
+│       ├── services/              # API utilities
+│       │   └── api.js             # Axios interceptors & HTTP calls
+│       └── utils/                 # Helper functions
+│           └── constants.js       # Formatting, icons, & static data
+│
+├── .gitignore                     # Root Git exclusion rules
+├── credentials.txt                # Database/Admin passwords (Ignored)
+├── project_setup.txt              # Setup notes
+└── README.md                      # This file
 ```
 
 ---
