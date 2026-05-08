@@ -164,5 +164,5 @@ npm run dev
 
 ## 🛡️ Security & Performance
 - **Database Layer**: Queries optimized using Django `Annotate` and `Aggregate` for high performance.
-- **Security**: Throttling enabled on Login/Register to prevent brute-force attacks.
-- **Production**: Configured with WhiteNoise for fast static file delivery and secure HTTPS settings.
+- **Security**: Throttling enabled on Login/Register to prevent brute-force attacks. Persistent session validation on frontend ensures stale tokens are cleared immediately.
+- **Production**: Configured with WhiteNoise and SPA `_redirects` for seamless page reloads on Render.
